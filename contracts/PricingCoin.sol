@@ -1,16 +1,18 @@
-pragma solidity ^0.7.0;
+// SPDX-License-Identifier: GPL-3.0
 
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v3.4.0-solc-0.7/contracts/token/ERC20/ERC20.sol";
-import "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/v3.4.0-solc-0.7/contracts/access/Ownable.sol";
+pragma solidity >=0.4.22 <0.9.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract PricingCoin is ERC20, Ownable{
     
     mapping(address => uint) public stake;
-    mapping(address => uint) public coinCount;
     mapping(address => uint) private appraisalPrice;
     uint public finalAppraisal; 
     
     enum ContractActiveStatus{ ACTIVE, INACTIVE }
+    ContractActiveStatus contractStatus;
     
     constructor() ERC20("PricingCoin", "PP") {
 
@@ -18,8 +20,11 @@ contract PricingCoin is ERC20, Ownable{
     
     //Check if contract is active
     modifier checkActive {
+        require(contractStatus == ContractActiveStatus.ACTIVE);
+        _;
         
     }
+    
     
     modifier checkStake {
         require(stake[msg.sender] > 0);

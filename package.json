@@ -1,0 +1,25 @@
+{
+  "name": "pricingcoin",
+  "version": "1.0.0",
+  "description": "Protocol for pricing items of unknown value (i.e. a new NFT).",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alangindi/pricingcoin.git"
+  },
+  "author": "alan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/alangindi/pricingcoin/issues"
+  },
+  "homepage": "https://github.com/alangindi/pricingcoin#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.2.0"
+  }
+}
