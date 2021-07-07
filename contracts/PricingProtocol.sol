@@ -5,7 +5,7 @@ pragma solidity >=0.4.22 <0.9.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract PricingCoin is ERC20, Ownable{
+contract PricingProtocol is ERC20, Ownable{
     
     mapping(address => uint) public stake;
     mapping(address => uint) private appraisalPrice;
@@ -13,6 +13,27 @@ contract PricingCoin is ERC20, Ownable{
     
     enum ContractActiveStatus{ ACTIVE, INACTIVE }
     ContractActiveStatus contractStatus;
+
+    // Struct of the voter
+    struct Voter{
+        //Index of the voted Proposal
+        uint vote;
+        //Weight ???
+        uint weight;
+        //True if user already voted
+        bool voted;
+    }
+
+    struct Bid{
+        string blindBid;
+        uint deposit;
+    }
+
+    struct Proposal{
+        //It should contain the 
+        //info of NFT, with its
+        //pricing etc.
+    }
     
     constructor() ERC20("PricingCoin", "PP") {
 
@@ -32,7 +53,7 @@ contract PricingCoin is ERC20, Ownable{
     }
     
     //Allow users to submit votes, given that they have some eth staked
-    function newVote(uint _price) checkStake public returns(bool){
+    function newVote(uint _deposit) checkStake public returns(bool){
         
     }
     
