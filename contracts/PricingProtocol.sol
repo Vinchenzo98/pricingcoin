@@ -8,32 +8,23 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract PricingProtocol is ERC20, Ownable{
     
     mapping(address => uint) public stake;
-    mapping(address => uint) private appraisalPrice;
+    mapping(address => uint) private finalAppraisalPrice;
     uint public finalAppraisal; 
     
     enum ContractActiveStatus{ ACTIVE, INACTIVE }
     ContractActiveStatus contractStatus;
 
-    // Struct of the voter
-    struct Voter{
-        //Index of the voted Proposal
+    struct Vote{
+        // Appraisal amount
         uint vote;
-        //Weight ???
+        // User stake amount
+        uint stake;
+        // Weight of appraisal
         uint weight;
-        //True if user already voted
-        bool voted;
     }
-
-    struct Bid{
-        string blindBid;
-        uint deposit;
-    }
-
-    struct Proposal{
-        //It should contain the 
-        //info of NFT, with its
-        //pricing etc.
-    }
+    
+    //Mapping voter to their vote
+    mapping(address => Vote) Voter;
     
     constructor() ERC20("PricingCoin", "PP") {
 
@@ -43,17 +34,16 @@ contract PricingProtocol is ERC20, Ownable{
     modifier checkActive {
         require(contractStatus == ContractActiveStatus.ACTIVE);
         _;
-        
     }
     
-    
+    //Check if user has staked amount of ETH
     modifier checkStake {
         require(stake[msg.sender] > 0);
         _;
     }
     
     //Allow users to submit votes, given that they have some eth staked
-    function newVote(uint _deposit) checkStake public returns(bool){
+    function newVote(uint _deposit) checkStake checkActive public returns(bool){
         
     }
     
