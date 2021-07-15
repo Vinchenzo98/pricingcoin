@@ -1,18 +1,26 @@
 // SPDX-License-Identifier: GPL-3.0
 
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
 pragma solidity >=0.4.22 <0.9.0;
 
-contract PricingCoin {
+contract PricingCoin is ERC20 {
+    constructor(uint256 initialSupply) ERC20("PricingCoin", "PP") {
+        _mint(msg.sender, initialSupply);
+    }
+}
+
+contract PricingProtocol{
     address manager;
     uint startTime;
     uint endTime;
     uint totalAppraisalValue;
     uint finalAppraisalPrice;
     
-    constructor() public {
+    constructor() {
         manager = msg.sender;
-        startTime = now;
-        endTime = now + 1 days;
+        startTime = block.timestamp;
+        endTime = block.timestamp + 1 days;
     }
     
     // mapping(address => uint) private finalAppraisalPrice;
@@ -33,7 +41,7 @@ contract PricingCoin {
     
     //Check if contract is active
     modifier isActive {
-        require(now < endTime);
+        require(block.timestamp < endTime);
         _;
     }
     
@@ -74,7 +82,7 @@ contract PricingCoin {
         return voters[msg.sender].stake;
     }
     
-    function setFinalAppraisal() public onlyManager returns(uint) {
+    function setFinalAppraisal() public onlyManager {
         finalAppraisalPrice = totalAppraisalValue/addresses.length;
     }
     
@@ -84,16 +92,16 @@ contract PricingCoin {
     
     /*
     At conclusion of pricing session we issue coins to users within ___ of price:
-        - 1% --> 5 $PP
-        - 2% --> 4 $PP
+        - 1% --> 10 $PP
+        - 2% --> 5 $PP
         - 3% --> 3 $PP
         - 4% --> 2 $PP
         - 5% --> 1 $PP
         
     Should return true if the coins were issued correctly
     */
-    function issueCoins() internal onlyManager returns(bool){
-        
+    function issueCoins(address account, uint amount) internal onlyManager returns(bool){
+        _mint(account, amount);
     }
 
     /*
@@ -127,11 +135,11 @@ contract PricingCoin {
     Should return true if loss pool is completely distributed
     */
     function distributeLossPool() internal onlyManager returns(bool){
-
+        
     }
     
     //Refund each users stake
-    function refundStake(address a) internal onlyManager returns(bool) {
+    function refundStake(address payable a) internal onlyManager returns(bool) {
         require(voters[a].stake > 0);
         a.transfer(voters[a].stake);
         voters[a].stake = 0;
