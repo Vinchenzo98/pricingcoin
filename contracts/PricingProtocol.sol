@@ -97,6 +97,7 @@ contract PricingProtocol is ERC20{
     */
     function issueCoins(address account, uint amount) internal onlyManager returns(bool){
         _mint(account, amount);
+        return true;
     }
 
     /*
@@ -127,10 +128,15 @@ contract PricingProtocol is ERC20{
     distributed to each coin holder wallet. For example if loss pool held 10 
     eth and there were 10 coins in circulation each coin would recieve 0.1 eth.
     
-    Should return true if loss pool is completely distributed
+    Should return true if loss pool is completely distributed.
+    
+    balancOf(a) represents the user (address a) balance of $PP.
+    _amount represents the calculate amount of ETH per token that is to be distributed.
+    Function should return true if eth is successfully sent. 
     */
-    function distributeLossPool() internal onlyManager returns(bool){
-        
+    function distributeLossPool(address payable a, uint _amount) internal onlyManager returns(bool){
+        a.transfer(balanceOf(a) * _amount);
+        return true;
     }
     
     //Refund each users stake
