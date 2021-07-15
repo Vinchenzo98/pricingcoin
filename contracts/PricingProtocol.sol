@@ -4,12 +4,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 pragma solidity >=0.4.22 <0.9.0;
 
-contract PricingCoin is ERC20 {
-    constructor(uint256 initialSupply) ERC20("PricingCoin", "PP") {
-        _mint(msg.sender, initialSupply);
-    }
-}
-
 contract PricingProtocol is ERC20{
     address manager;
     uint startTime;
