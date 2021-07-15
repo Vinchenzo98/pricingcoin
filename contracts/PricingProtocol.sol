@@ -10,14 +10,15 @@ contract PricingCoin is ERC20 {
     }
 }
 
-contract PricingProtocol{
+contract PricingProtocol is ERC20{
     address manager;
     uint startTime;
     uint endTime;
     uint totalAppraisalValue;
     uint finalAppraisalPrice;
     
-    constructor() {
+    constructor(uint256 initialSupply) ERC20("PricingCoin", "PP") {
+        _mint(msg.sender, initialSupply);
         manager = msg.sender;
         startTime = block.timestamp;
         endTime = block.timestamp + 1 days;
