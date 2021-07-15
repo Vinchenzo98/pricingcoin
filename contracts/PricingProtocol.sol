@@ -26,6 +26,11 @@ contract PricingCoin {
     mapping (address => Voter) voters;
     address[] addresses;
     
+    modifier onlyManager {
+        require(msg.sender == manager);
+        _;
+    }
+    
     //Check if contract is active
     modifier isActive {
         require(now < endTime);
@@ -56,8 +61,8 @@ contract PricingCoin {
         return a.balance;
     }
     
-    function getVote() view public returns(uint) {
-        return voters[msg.sender].appraisal;
+    function getVote(address a) view public onlyManager returns(uint) {
+        return voters[a].appraisal;
     }
     
     function setStake(address a, uint _num) public returns(bool) {
@@ -69,7 +74,7 @@ contract PricingCoin {
         return voters[msg.sender].stake;
     }
     
-    function setFinalAppraisal() public returns(uint) {
+    function setFinalAppraisal() public onlyManager returns(uint) {
         finalAppraisalPrice = totalAppraisalValue/addresses.length;
     }
     
@@ -87,7 +92,7 @@ contract PricingCoin {
         
     Should return true if the coins were issued correctly
     */
-    function issueCoins() internal returns(bool){
+    function issueCoins() internal onlyManager returns(bool){
         
     }
 
@@ -97,19 +102,21 @@ contract PricingCoin {
     
     Should return amount total loss harvest amount 
     */
-   function harvestLoss(address a) view public returns(uint){
-        if (voters[a].appraisal*1000 > 21000*finalAppraisalPrice/20){
+   function harvestLoss(address a) public onlyManager returns(uint){
+        if (voters[a].appraisal*100 > 105*finalAppraisalPrice){
             voters[a].stake = 
-                (voters[a].stake - (voters[a].appraisal*1000 - 21000*finalAppraisalPrice/20)
+                (voters[a].stake - (voters[a].appraisal*100 - 105*finalAppraisalPrice)
                 /finalAppraisalPrice*voters[a].stake);
+            return voters[a].stake;
         }
-        else if(voters[a].appraisal < 19*finalAppraisalPrice/20){
+        else if(voters[a].appraisal*100 < 95*finalAppraisalPrice){
             voters[a].stake = 
-                (voters[a].stake - (19*finalAppraisalPrice/20 - voters[a].appraisal)
+                (voters[a].stake - (95*finalAppraisalPrice - 100*voters[a].appraisal)
                 /finalAppraisalPrice*voters[a].stake);
+            return voters[a].stake;
         }
         else {
-            return 0;
+            return voters[a].stake;
         }
     }    
     /*
@@ -119,17 +126,15 @@ contract PricingCoin {
     
     Should return true if loss pool is completely distributed
     */
-    function distributeLossPool() internal returns(bool){
+    function distributeLossPool() internal onlyManager returns(bool){
 
     }
     
     //Refund each users stake
-    function refundStake() internal returns(bool) {
-        // for(uint i=0; i<addresses.length; i++){
-        //     address a = voters[addresses[i]];
-        //     a.transfer(voters[addresses[i]].stake);
-        //     voters[addresses[i]].stake = 0;
-        // }
+    function refundStake(address a) internal onlyManager returns(bool) {
+        require(voters[a].stake > 0);
+        a.transfer(voters[a].stake);
+        voters[a].stake = 0;
         return true;
     }
     
