@@ -77,8 +77,9 @@ contract PricingProtocol is ERC20{
         return voters[msg.sender].stake;
     }
     
-    function setFinalAppraisal() public onlyManager {
+    function setFinalAppraisal() public onlyManager returns(uint) {
         finalAppraisalPrice = totalAppraisalValue/addresses.length;
+        return finalAppraisalPrice;
     }
     
     function getFinalAppraisal() view public returns(uint) {
@@ -109,14 +110,14 @@ contract PricingProtocol is ERC20{
    function harvestLoss(address a) public onlyManager returns(uint){
         if (voters[a].appraisal*100 > 105*finalAppraisalPrice){
             voters[a].stake = 
-                (voters[a].stake - (voters[a].appraisal*100 - 105*finalAppraisalPrice)
-                /finalAppraisalPrice*voters[a].stake);
+                (voters[a].stake - voters[a].stake * (voters[a].appraisal*100 - 105*finalAppraisalPrice)
+                /(finalAppraisalPrice*100));
             return voters[a].stake;
         }
         else if(voters[a].appraisal*100 < 95*finalAppraisalPrice){
             voters[a].stake = 
-                (voters[a].stake - (95*finalAppraisalPrice - 100*voters[a].appraisal)
-                /finalAppraisalPrice*voters[a].stake);
+                (voters[a].stake - voters[a].stake * (95*finalAppraisalPrice - 100*voters[a].appraisal)
+                /(finalAppraisalPrice*100));
             return voters[a].stake;
         }
         else {
@@ -134,13 +135,17 @@ contract PricingProtocol is ERC20{
     _amount represents the calculate amount of ETH per token that is to be distributed.
     Function should return true if eth is successfully sent. 
     */
-    function distributeLossPool(address payable a, uint _amount) internal onlyManager returns(bool){
-        a.transfer(balanceOf(a) * _amount);
+    function distributeLossPool(address payable receiver, address _contract) public onlyManager returns(bool){
+        receiver.transfer(balanceOf(receiver) * _contract.balance/totalSupply());
         return true;
     }
     
+    function getValuePerToken( address _contract) view public returns(uint){
+        return _contract.balance/totalSupply();
+    }
+    
     //Refund each users stake
-    function refundStake(address payable a) internal onlyManager returns(bool) {
+    function refundStake(address payable a) public onlyManager returns(bool) {
         require(voters[a].stake > 0);
         a.transfer(voters[a].stake);
         voters[a].stake = 0;
