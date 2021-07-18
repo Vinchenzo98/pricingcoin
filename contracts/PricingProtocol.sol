@@ -73,7 +73,11 @@ contract PricingProtocol is ERC20{
         nftAddresses.push(_contractAddress);
     }
     
-    //Allow users to create new vote.
+    /* 
+    This function allows users to create a new vote for an NFT. 
+    
+    Each vote will be weighted using a simple quadratic voting formula --> sqrt(stake/0.1 ETH)
+    */
     function setVote(uint _appraisal, address _nftAddress) checkStake isActive(_nftAddress) oneVoteEach(_nftAddress) payable public {
         Voter memory newVote = Voter(_appraisal, msg.value, true);
         totalAppraisalValue[_nftAddress] += _appraisal;
@@ -178,3 +182,5 @@ contract PricingProtocol is ERC20{
         nftVotes[_nftAddress][a].stake = 0;
         return true;
     }
+    
+}
