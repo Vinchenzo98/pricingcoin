@@ -35,6 +35,7 @@ contract PricingProtocol is ERC20{
         uint amountOfVoters;
         uint tokensIssued;
         uint lossPoolTotal;
+        uint totalSessionStake;
     }
     
     //Find a pricing session and all its information (PricingSession struct) by the NFT address
@@ -74,7 +75,7 @@ contract PricingProtocol is ERC20{
     
     //Create a new pricing session
     function createPricingSession(address _contractAddress) onlyManager public {
-        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0);
+        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0);
         AllPricingSessions[_contractAddress] = newSession;
         nftAddresses.push(_contractAddress);
     }
@@ -87,6 +88,7 @@ contract PricingProtocol is ERC20{
     function setVote(uint _appraisal, address _nftAddress, uint weight) checkStake isActive(_nftAddress) oneVoteEach(_nftAddress) payable public {
         Voter memory newVote = Voter(0, weight, _appraisal, msg.value, true);
         totalAppraisalValue[_nftAddress] += _appraisal;
+        AllPricingSessions[_nftAddress].totalSessionStake += msg.value;
         nftVotes[_nftAddress][msg.sender] = newVote;
         addressesPerNft[_nftAddress].push(msg.sender);
         emit newVoteCreated(_nftAddress, msg.sender, weight, _appraisal, msg.value);
@@ -135,6 +137,15 @@ contract PricingProtocol is ERC20{
     
     This logic is implemented in calculateBase and issueCoins functions
     */
+    function sqrt(uint x) internal pure returns (uint y) {
+        uint z = (x + 1) / 2;
+        y = x;
+        while (z < y) {
+            y = z;
+            z = (x / z + z) / 2;
+        }
+    }
+    
     function calculateBase(address a, address _nftAddress) public {
         if (104*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][a].appraisal 
             && 105*AllPricingSessions[_nftAddress].finalAppraisal >= 100*nftVotes[_nftAddress][a].appraisal) {
@@ -181,13 +192,14 @@ contract PricingProtocol is ERC20{
         }
     }
     
-    function issueCoins(address a, address _nftAddress, uint _cbrtSessionSize, uint _cbrtTotalSessionStake) internal onlyManager returns(bool){
+    function issueCoins(address a, address _nftAddress) internal onlyManager returns(bool){
         uint amount; 
         if (addressesPerNft[_nftAddress].length < 10) {
             amount = 0;
         }
         else if (addressesPerNft[_nftAddress].length >= 10) {
-            amount = nftVotes[_nftAddress][a].base * nftVotes[_nftAddress][a].stake * _cbrtSessionSize * _cbrtTotalSessionStake;
+            amount = nftVotes[_nftAddress][a].base * nftVotes[_nftAddress][a].stake * sqrt(addressesPerNft[_nftAddress].length) * 
+            sqrt(AllPricingSessions[_nftAddress].totalSessionStake);
         }
         _mint(a, amount);
         AllPricingSessions[_nftAddress].tokensIssued += amount;
