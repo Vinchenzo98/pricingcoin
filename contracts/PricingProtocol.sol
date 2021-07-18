@@ -17,6 +17,8 @@ contract PricingProtocol is ERC20{
     
     //Voter struct to allow users to submit votes, stake, and track that the user has already voted (i.e. exists = true) 
     struct Voter {
+        uint base;
+        uint weight;
         uint appraisal;
         uint stake;
         bool exists;
@@ -41,6 +43,10 @@ contract PricingProtocol is ERC20{
     address[] nftAddresses;
     //Track votes at a given nft address
     mapping(address => mapping (address => Voter)) nftVotes;
+    
+    event newVoteCreated(address _nftAddress, address _voterAddress, uint weight, uint appraisal, uint stake);
+    
+    event finalAppraisalDetermined(address _nftAddress, uint appraisal);
     
     //onlyOwner equivalent to stop users from calling functions that onyl manager could call 
     modifier onlyManager {
@@ -78,11 +84,12 @@ contract PricingProtocol is ERC20{
     
     Each vote will be weighted using a simple quadratic voting formula --> sqrt(stake/0.1 ETH)
     */
-    function setVote(uint _appraisal, address _nftAddress) checkStake isActive(_nftAddress) oneVoteEach(_nftAddress) payable public {
-        Voter memory newVote = Voter(_appraisal, msg.value, true);
+    function setVote(uint _appraisal, address _nftAddress, uint weight) checkStake isActive(_nftAddress) oneVoteEach(_nftAddress) payable public {
+        Voter memory newVote = Voter(0, weight, _appraisal, msg.value, true);
         totalAppraisalValue[_nftAddress] += _appraisal;
         nftVotes[_nftAddress][msg.sender] = newVote;
         addressesPerNft[_nftAddress].push(msg.sender);
+        emit newVoteCreated(_nftAddress, msg.sender, weight, _appraisal, msg.value);
     }
     
     function getTreasury(address a) view public returns(uint) {
@@ -99,8 +106,10 @@ contract PricingProtocol is ERC20{
     
     function setFinalAppraisal(address _nftAddress) public onlyManager {
         AllPricingSessions[_nftAddress].amountOfVoters = addressesPerNft[_nftAddress].length;
+        //Fix this for weighting system
         AllPricingSessions[_nftAddress].finalAppraisal = totalAppraisalValue[_nftAddress]/addressesPerNft[_nftAddress].length;
         nftAddresses.push(_nftAddress);
+        emit finalAppraisalDetermined(_nftAddress, AllPricingSessions[_nftAddress].finalAppraisal);
     }
     
     function getFinalAppraisal(address _nftAddress) view public returns(uint) {
@@ -110,9 +119,11 @@ contract PricingProtocol is ERC20{
     /*
     At conclusion of pricing session we issue coins to users within ___ of price:
     
-    Three factors: size of pricing session (constant for all in session), 
+    Four factors:  size of pricing session (constant for all in session), 
+                   size of total staking pool (constant for all in session),    
                    user stake (quadratic multiplier),  
-                   accuracy
+                   accuracy (base)
+    Equation = base * sqrt(personal stake) * cube-rt(size of pricing session) * cube-rt(total ETH in staking pool)
     Base Distribution:
         - 1% --> 5 $PP
         - 2% --> 4 $PP
@@ -121,9 +132,64 @@ contract PricingProtocol is ERC20{
         - 5% --> 1 $PP
         
     Should return true if the coins were issued correctly
+    
+    This logic is implemented in calculateBase and issueCoins functions
     */
-    function issueCoins(address account, uint amount, address _nftAddress) internal onlyManager returns(bool){
-        _mint(account, amount);
+    function calculateBase(address a, address _nftAddress) public {
+        if (104*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][a].appraisal 
+            && 105*AllPricingSessions[_nftAddress].finalAppraisal >= 100*nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 1;
+        }
+        else if (103*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
+            && 104*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 2;
+        }
+        else if (102*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][a].appraisal 
+            && 103*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 3;
+        }
+        else if (101*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
+            && 102*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 4;
+        }
+        else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
+            && 101*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 5;
+        }
+        else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
+            && 99*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 5;
+        }
+        else if (99*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
+            && 98*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 4;
+        }
+        else if (98*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
+            && 97*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 3;
+        }
+        else if (97*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
+            && 96*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 2;
+        }
+        else if (96*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
+            && 95*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
+            nftVotes[_nftAddress][a].base = 1;
+        }
+        else {
+            nftVotes[_nftAddress][a].base = 0;
+        }
+    }
+    
+    function issueCoins(address a, address _nftAddress, uint _cbrtSessionSize, uint _cbrtTotalSessionStake) internal onlyManager returns(bool){
+        uint amount; 
+        if (addressesPerNft[_nftAddress].length < 10) {
+            amount = 0;
+        }
+        else if (addressesPerNft[_nftAddress].length >= 10) {
+            amount = nftVotes[_nftAddress][a].base * nftVotes[_nftAddress][a].stake * _cbrtSessionSize * _cbrtTotalSessionStake;
+        }
+        _mint(a, amount);
         AllPricingSessions[_nftAddress].tokensIssued += amount;
         return true;
     }
@@ -169,10 +235,6 @@ contract PricingProtocol is ERC20{
     function distributeLossPool(address payable receiver, address _contract) public onlyManager returns(bool){
         receiver.transfer(balanceOf(receiver) * _contract.balance/totalSupply());
         return true;
-    }
-    
-    function getValuePerToken( address _contract) view public returns(uint){
-        return _contract.balance/totalSupply();
     }
     
     //Refund each users stake
