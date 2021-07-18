@@ -33,6 +33,7 @@ contract PricingProtocol is ERC20{
         uint endTime;
         uint finalAppraisal;
         uint amountOfVoters;
+        uint totalVotes;
         uint tokensIssued;
         uint lossPoolTotal;
         uint totalSessionStake;
@@ -75,7 +76,7 @@ contract PricingProtocol is ERC20{
     
     //Create a new pricing session
     function createPricingSession(address _contractAddress) onlyManager public {
-        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0);
+        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0, 0);
         AllPricingSessions[_contractAddress] = newSession;
         nftAddresses.push(_contractAddress);
     }
@@ -85,13 +86,15 @@ contract PricingProtocol is ERC20{
     
     Each vote will be weighted using a simple quadratic voting formula --> sqrt(stake/0.1 ETH)
     */
-    function setVote(uint _appraisal, address _nftAddress, uint weight) checkStake isActive(_nftAddress) oneVoteEach(_nftAddress) payable public {
-        Voter memory newVote = Voter(0, weight, _appraisal, msg.value, true);
-        totalAppraisalValue[_nftAddress] += _appraisal;
+    function setVote(uint _appraisal, address _nftAddress) checkStake isActive(_nftAddress) oneVoteEach(_nftAddress) payable public {
+        require(msg.value >= 0.0001 ether, "You must stake more than 0.0001 ETH to vote!");
+        Voter memory newVote = Voter(0, sqrt(msg.value/10**12), _appraisal, msg.value, true);
+        totalAppraisalValue[_nftAddress] += _appraisal*sqrt(msg.value/10**12);
+        AllPricingSessions[_nftAddress].totalVotes += sqrt(msg.value/10**12);
         AllPricingSessions[_nftAddress].totalSessionStake += msg.value;
         nftVotes[_nftAddress][msg.sender] = newVote;
         addressesPerNft[_nftAddress].push(msg.sender);
-        emit newVoteCreated(_nftAddress, msg.sender, weight, _appraisal, msg.value);
+        emit newVoteCreated(_nftAddress, msg.sender, sqrt(msg.value), _appraisal, msg.value);
     }
     
     function getTreasury(address a) view public returns(uint) {
@@ -106,10 +109,11 @@ contract PricingProtocol is ERC20{
         return nftVotes[_nftAddress][msg.sender].stake;
     }
     
+    // the divided by 100 references the sqrt 10**12 which is 10**18/10**6 => sqrt 10**6 = 1000; 
     function setFinalAppraisal(address _nftAddress) public onlyManager {
         AllPricingSessions[_nftAddress].amountOfVoters = addressesPerNft[_nftAddress].length;
         //Fix this for weighting system
-        AllPricingSessions[_nftAddress].finalAppraisal = totalAppraisalValue[_nftAddress]/addressesPerNft[_nftAddress].length;
+        AllPricingSessions[_nftAddress].finalAppraisal = (totalAppraisalValue[_nftAddress]/1000)/(AllPricingSessions[_nftAddress].totalVotes/1000);
         nftAddresses.push(_nftAddress);
         emit finalAppraisalDetermined(_nftAddress, AllPricingSessions[_nftAddress].finalAppraisal);
     }
@@ -125,7 +129,7 @@ contract PricingProtocol is ERC20{
                    size of total staking pool (constant for all in session),    
                    user stake (quadratic multiplier),  
                    accuracy (base)
-    Equation = base * sqrt(personal stake) * cube-rt(size of pricing session) * cube-rt(total ETH in staking pool)
+    Equation = base * sqrt(personal stake) * sqrt(size of pricing session) * sqrt(total ETH in staking pool)
     Base Distribution:
         - 1% --> 5 $PP
         - 2% --> 4 $PP
@@ -198,8 +202,8 @@ contract PricingProtocol is ERC20{
             amount = 0;
         }
         else if (addressesPerNft[_nftAddress].length >= 10) {
-            amount = nftVotes[_nftAddress][a].base * nftVotes[_nftAddress][a].stake * sqrt(addressesPerNft[_nftAddress].length) * 
-            sqrt(AllPricingSessions[_nftAddress].totalSessionStake);
+            amount = (nftVotes[_nftAddress][a].base * sqrt(nftVotes[_nftAddress][a].stake) * sqrt(addressesPerNft[_nftAddress].length) * 
+                sqrt(AllPricingSessions[_nftAddress].totalSessionStake)/sqrt(10**18))/sqrt(10**18);
         }
         _mint(a, amount);
         AllPricingSessions[_nftAddress].tokensIssued += amount;
