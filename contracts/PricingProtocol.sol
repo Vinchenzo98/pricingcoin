@@ -97,7 +97,7 @@ contract PricingProtocol is ERC20{
     }
     
     //Create a new pricing session
-    function createPricingSession(address _nftAddress) onlyManager public {
+    function createPricingSession(address _nftAddress) public {
         //Create new instance of PricingSession
         PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0, 0);
         //Assign new instance to NFT address
@@ -169,7 +169,7 @@ contract PricingProtocol is ERC20{
     This logic is implemented in calculateBase and issueCoins functions
     */
 
-    function calculateBase(address a, address _nftAddress) public {
+    function calculateBase(address a, address _nftAddress) onlyManager public {
         /*
         Each of the following test the voters guess starting from 105 (5% above) and going down to 95 (5% below). 
         If true nftVotes[_nftAddress][a].base is set to reflect the users base reward
