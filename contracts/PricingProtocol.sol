@@ -5,10 +5,9 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 pragma solidity >=0.4.22 <0.9.0;
 
 contract PricingProtocol is ERC20{
-    address manager;
+    address public manager;
     //Maps the total appraisal value to an NFT address
     mapping(address => uint) totalAppraisalValue;
-    uint finalAppraisalPrice;
     
     //Initial constructor for the entire Pricing Protocol contract
     constructor(uint256 initialSupply) ERC20("PricingCoin", "PP") {
@@ -45,25 +44,25 @@ contract PricingProtocol is ERC20{
     
     //onlyOwner equivalent to stop users from calling functions that onyl manager could call 
     modifier onlyManager {
-        require(msg.sender == manager);
+        require(msg.sender == manager, "You are not the manager!");
         _;
     }
     
     //Check if contract is active
     modifier isActive(address _nftAddress) {
-        require(block.timestamp < AllPricingSessions[_nftAddress].endTime);
+        require(block.timestamp < AllPricingSessions[_nftAddress].endTime, "This pricing session is no longer active :(");
         _;
     }
     
     //Make sure users don't submit more than one appraisal
     modifier oneVoteEach(address _nftAddress) {
-        require(!nftVotes[_nftAddress][msg.sender].exists);
+        require(!nftVotes[_nftAddress][msg.sender].exists, "Each user only gets one vote!");
         _;
     }
     
     //Check to see that the user has enough money to stake what they promise
     modifier checkStake {
-        require(msg.value > 0);
+        require(msg.value > 0, "You must stake some ETH to vote :)");
         _;
     }
     
@@ -94,28 +93,34 @@ contract PricingProtocol is ERC20{
         return nftVotes[_nftAddress][msg.sender].stake;
     }
     
-    function setFinalAppraisal(address _nftAddress) public onlyManager returns(uint) {
-        finalAppraisalPrice = totalAppraisalValue[_nftAddress]/addressesPerNft[_nftAddress].length;
-        AllPricingSessions[_nftAddress].finalAppraisal = finalAppraisalPrice;
-        return finalAppraisalPrice;
+    function setFinalAppraisal(address _nftAddress) public onlyManager {
+        AllPricingSessions[_nftAddress].amountOfVoters = addressesPerNft[_nftAddress].length;
+        AllPricingSessions[_nftAddress].finalAppraisal = totalAppraisalValue[_nftAddress]/addressesPerNft[_nftAddress].length;
+        nftAddresses.push(_nftAddress);
     }
     
-    function getFinalAppraisal() view public returns(uint) {
-        return finalAppraisalPrice;
+    function getFinalAppraisal(address _nftAddress) view public returns(uint) {
+        return AllPricingSessions[_nftAddress].finalAppraisal;
     }
     
     /*
     At conclusion of pricing session we issue coins to users within ___ of price:
-        - 1% --> 10 $PP
-        - 2% --> 5 $PP
+    
+    Three factors: size of pricing session (constant for all in session), 
+                   user stake (quadratic multiplier),  
+                   accuracy
+    Base Distribution:
+        - 1% --> 5 $PP
+        - 2% --> 4 $PP
         - 3% --> 3 $PP
         - 4% --> 2 $PP
         - 5% --> 1 $PP
         
     Should return true if the coins were issued correctly
     */
-    function issueCoins(address account, uint amount) internal onlyManager returns(bool){
+    function issueCoins(address account, uint amount, address _nftAddress) internal onlyManager returns(bool){
         _mint(account, amount);
+        AllPricingSessions[_nftAddress].tokensIssued += amount;
         return true;
     }
 
@@ -127,12 +132,16 @@ contract PricingProtocol is ERC20{
     */
    function harvestLoss(address a, address _nftAddress) public onlyManager returns(uint){
         if (nftVotes[_nftAddress][a].appraisal*100 > 105*AllPricingSessions[_nftAddress].finalAppraisal){
+            AllPricingSessions[_nftAddress].lossPoolTotal += nftVotes[_nftAddress][a].stake * (nftVotes[_nftAddress][a].appraisal*100 - 105*AllPricingSessions[_nftAddress].finalAppraisal)
+                /(AllPricingSessions[_nftAddress].finalAppraisal*100);
             nftVotes[_nftAddress][a].stake = 
                 (nftVotes[_nftAddress][a].stake - nftVotes[_nftAddress][a].stake * (nftVotes[_nftAddress][a].appraisal*100 - 105*AllPricingSessions[_nftAddress].finalAppraisal)
                 /(AllPricingSessions[_nftAddress].finalAppraisal*100));
             return nftVotes[_nftAddress][a].stake;
         }
         else if(nftVotes[_nftAddress][a].appraisal*100 < 95*AllPricingSessions[_nftAddress].finalAppraisal){
+            AllPricingSessions[_nftAddress].lossPoolTotal += nftVotes[_nftAddress][a].stake * (95*AllPricingSessions[_nftAddress].finalAppraisal - 100*nftVotes[_nftAddress][a].appraisal)
+                /(AllPricingSessions[_nftAddress].finalAppraisal*100);
             nftVotes[_nftAddress][a].stake = 
                 (nftVotes[_nftAddress][a].stake - nftVotes[_nftAddress][a].stake * (95*AllPricingSessions[_nftAddress].finalAppraisal - 100*nftVotes[_nftAddress][a].appraisal)
                 /(AllPricingSessions[_nftAddress].finalAppraisal*100));
@@ -169,5 +178,3 @@ contract PricingProtocol is ERC20{
         nftVotes[_nftAddress][a].stake = 0;
         return true;
     }
-    
-}
