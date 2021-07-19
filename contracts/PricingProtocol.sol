@@ -24,11 +24,6 @@ contract PricingProtocol is ERC20{
         Detemined by raw appraisal accuracy
         */
         uint base;
-        /*
-        Represents weight of the users vote based on eq --> sqrt(msg.value/10**12). 
-        10**12 is a scaling to avoid decimal bug during computations.
-        */
-        uint weight;
         //Voter appraisal 
         uint appraisal;
         //Voter stake
@@ -49,7 +44,7 @@ contract PricingProtocol is ERC20{
         //Final appraisal calculated using --> weight per user * appraisal per user
         uint finalAppraisal;
         //Keep track of amount of unique voters (by address) in pricing session
-        uint amountOfVoters;
+        uint uniqueVoters;
         //Keep track of totalVotes (takes into account multiple votes attributed during weighting)
         uint totalVotes;
         //Track the amount of tokens issued in each pricing session
@@ -58,6 +53,8 @@ contract PricingProtocol is ERC20{
         uint lossPoolTotal;
         //Tracks total session stake
         uint totalSessionStake;
+        //Track lowest stake, for vote weighting
+        uint lowestStake;
     }
     
     //Easily accesible pricing session lookup 
@@ -99,7 +96,7 @@ contract PricingProtocol is ERC20{
     //Create a new pricing session
     function createPricingSession(address _nftAddress) public {
         //Create new instance of PricingSession
-        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0, 0);
+        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0, 0, 10000000 ether);
         //Assign new instance to NFT address
         AllPricingSessions[_nftAddress] = newSession;
         //Add new NFT address to list of addresses 
@@ -118,16 +115,14 @@ contract PricingProtocol is ERC20{
     
     /* 
     This function allows users to create a new vote for an NFT. 
-    
-    Each vote will be weighted using a simple quadratic voting formula --> sqrt(stake/10**12)
     */
     function setVote(uint _appraisal, address _nftAddress) checkStake isActive(_nftAddress) oneVoteEach(_nftAddress) payable public {
         //Create a new Voter instance
-        Voter memory newVote = Voter(0, sqrt(msg.value/10**12), _appraisal, msg.value, true);
-        //Add the weighted vote to the total appraisal value. This is scaled by the weight of the vote (based on stake)
-        totalAppraisalValue[_nftAddress] += _appraisal*sqrt(msg.value/10**12);
-        //Add to total amount of votes and its scaled by down 10**12. Keep in mind sqrt(10**6) is 10**3
-        AllPricingSessions[_nftAddress].totalVotes += sqrt(msg.value/10**12);
+        Voter memory newVote = Voter(0, _appraisal, msg.value, true);
+        if (msg.value < AllPricingSessions[_nftAddress].lowestStake) {
+            AllPricingSessions[_nftAddress].lowestStake = msg.value;
+        }
+        totalAppraisalValue[_nftAddress] += _appraisal;
         //Add to total session stake to for reward purposes later on in issueCoin equation
         AllPricingSessions[_nftAddress].totalSessionStake += msg.value;
         //Attach new msg.sender address to newVote (i.e. new Voter struct)
@@ -136,15 +131,27 @@ contract PricingProtocol is ERC20{
         emit newVoteCreated(_nftAddress, msg.sender, sqrt(msg.value), _appraisal, msg.value);
     }
     
+    /* 
+    Each vote is weighted based on the lowest stake. So lowest stake starts as 1 vote 
+    and the rest of the votes are weighted as a multiple of that. 
+    */
+    function weightVote(address _nftAddress, address a) onlyManager public {
+        //Weighting user at <address a> vote based on lowestStake
+        uint weight = sqrt(nftVotes[_nftAddress][a].stake/AllPricingSessions[_nftAddress].lowestStake);
+        //Add weighted amount of votes to PricingSession total votes for calculating setFinalAppraisal
+        AllPricingSessions[_nftAddress].totalVotes += weight;
+        //weight - 1 since one instance was already added in initial setVote function
+        totalAppraisalValue[_nftAddress] += (weight-1) * nftVotes[_nftAddress][msg.sender].appraisal;
+    }
+    
     /*
     Function used to setFinalAppraisal 
-    The divided by 1000 references the sqrt 10**12 which is 10**18/10**6 => sqrt 10**6 = 1000;
     */
     function setFinalAppraisal(address _nftAddress) public onlyManager {
         //Set amountOfVoters for tracking unique voters in a pricing session
-        AllPricingSessions[_nftAddress].amountOfVoters = addressesPerNft[_nftAddress].length;
+        AllPricingSessions[_nftAddress].uniqueVoters = addressesPerNft[_nftAddress].length;
         //Set finalAppraisal by calculating totalAppraisalValue / totalVotes. Scale back the 1000 to make up for scaling method in setVote
-        AllPricingSessions[_nftAddress].finalAppraisal = (totalAppraisalValue[_nftAddress]/1000)/(AllPricingSessions[_nftAddress].totalVotes/1000);
+        AllPricingSessions[_nftAddress].finalAppraisal = (totalAppraisalValue[_nftAddress])/(AllPricingSessions[_nftAddress].totalVotes);
         nftAddresses.push(_nftAddress);
         emit finalAppraisalDetermined(_nftAddress, AllPricingSessions[_nftAddress].finalAppraisal);
     }
