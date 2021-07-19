@@ -63,6 +63,10 @@ contract PricingProtocol is ERC20{
     address[] nftAddresses;
     //Allows pricing protocol to handle multiple NFTs at once by allowing lookup and tracking of different NFTs
     mapping(address => mapping (address => Voter)) nftVotes;
+    //Track in the money addresses to optimize amount of transactions when paying out
+    address[] inTheMoney;
+    //Track out of the money addresses to optimize amount of transactions when harvesting loss
+    address[] outTheMoney;
     //Represents a new vote being created
     event newVoteCreated(address _nftAddress, address _voterAddress, uint weight, uint appraisal, uint stake);
     //Represents the ending of pricing session and a final appraisal being determined 
@@ -145,7 +149,7 @@ contract PricingProtocol is ERC20{
     }
     
     /*
-    Function used to setFinalAppraisal 
+    Function used to set the final appraisal of a pricing session
     */
     function setFinalAppraisal(address _nftAddress) public onlyManager {
         //Set amountOfVoters for tracking unique voters in a pricing session
@@ -184,46 +188,57 @@ contract PricingProtocol is ERC20{
         if (104*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][a].appraisal 
             && 105*AllPricingSessions[_nftAddress].finalAppraisal >= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 1;
+            inTheMoney.push(a);
         }
         else if (103*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
             && 104*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 2;
+            inTheMoney.push(a);
         }
         else if (102*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][a].appraisal 
             && 103*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 3;
+            inTheMoney.push(a);
         }
         else if (101*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
             && 102*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 4;
+            inTheMoney.push(a);
         }
         else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
             && 101*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 5;
+            inTheMoney.push(a);
         }
         else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
             && 99*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 5;
+            inTheMoney.push(a);
         }
         else if (99*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
             && 98*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 4;
+            inTheMoney.push(a);
         }
         else if (98*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
             && 97*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 3;
+            inTheMoney.push(a);
         }
         else if (97*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
             && 96*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 2;
+            inTheMoney.push(a);
         }
         else if (96*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
             && 95*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 1;
+            inTheMoney.push(a);
         }
         //In this case the user is out of the money
         else {
             nftVotes[_nftAddress][a].base = 0;
+            outTheMoney.push(a);
         }
     }
     
@@ -287,6 +302,17 @@ contract PricingProtocol is ERC20{
         return true;
     }
     
+    //Refund each users stake
+    function refundStake(address payable a, address _nftAddress) public onlyManager returns(bool) {
+        require(nftVotes[_nftAddress][a].stake > 0);
+        //sends stakes back to users
+        a.transfer(nftVotes[_nftAddress][a].stake);
+        //sets stake to 0 to avoid re-entrancy
+        nftVotes[_nftAddress][a].stake = 0;
+        //function returns true if stake was sent back correctly. 
+        return true;
+    }
+    
     /*
     Loss pool should be divided by the amount of tokens in circulation and
     distributed to each coin holder wallet. For example if loss pool held 10 
@@ -303,18 +329,6 @@ contract PricingProtocol is ERC20{
         receiver.transfer(balanceOf(receiver) * _contract.balance/totalSupply());
         return true;
     }
-    
-    //Refund each users stake
-    function refundStake(address payable a, address _nftAddress) public onlyManager returns(bool) {
-        require(nftVotes[_nftAddress][a].stake > 0);
-        //sends stakes back to users
-        a.transfer(nftVotes[_nftAddress][a].stake);
-        //sets stake to 0 to avoid re-entrancy
-        nftVotes[_nftAddress][a].stake = 0;
-        //function returns true if stake was sent back correctly. 
-        return true;
-    }
-    
         
     function getTreasury(address a) view public returns(uint) {
         return a.balance;
