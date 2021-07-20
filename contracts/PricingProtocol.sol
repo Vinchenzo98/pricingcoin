@@ -55,6 +55,8 @@ contract PricingProtocol is ERC20{
         uint totalSessionStake;
         //Track lowest stake, for vote weighting
         uint lowestStake;
+        //Track existence of NFT session
+        bool active;
     }
     
     //Easily accesible pricing session lookup 
@@ -67,6 +69,11 @@ contract PricingProtocol is ERC20{
     address[] inTheMoney;
     //Track out of the money addresses to optimize amount of transactions when harvesting loss
     address[] outTheMoney;
+    //Mapping to check if a user is already considered a coin holder
+    mapping(address => bool) isCoinHolder;
+    //Keep track of all unique coin holder addresses 
+    address[] coinHolders; 
+    
     //Represents a new vote being created
     event newVoteCreated(address _nftAddress, address _voterAddress, uint weight, uint appraisal, uint stake);
     //Represents the ending of pricing session and a final appraisal being determined 
@@ -85,6 +92,12 @@ contract PricingProtocol is ERC20{
         _;
     }
     
+    //Enforce session buffer to stop sessions from getting overwritten
+    modifier stopOverwrite(address _nftAddress) {
+        require(AllPricingSessions[_nftAddress].active = false, "You must wait until this pricing session is over.");
+        _;
+    }
+    
     //Make sure users don't submit more than one appraisal
     modifier oneVoteEach(address _nftAddress) {
         require(!nftVotes[_nftAddress][msg.sender].exists, "Each user only gets one vote!");
@@ -98,9 +111,9 @@ contract PricingProtocol is ERC20{
     }
     
     //Create a new pricing session
-    function createPricingSession(address _nftAddress) public {
+    function createPricingSession(address _nftAddress) stopOverwrite public {
         //Create new instance of PricingSession
-        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0, 0, 10000000 ether);
+        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0, 0, 10000000 ether, true);
         //Assign new instance to NFT address
         AllPricingSessions[_nftAddress] = newSession;
         //Add new NFT address to list of addresses 
@@ -151,12 +164,13 @@ contract PricingProtocol is ERC20{
     /*
     Function used to set the final appraisal of a pricing session
     */
-    function setFinalAppraisal(address _nftAddress) public onlyManager {
+    function setFinalAppraisal(address _nftAddress) onlyManager public {
         //Set amountOfVoters for tracking unique voters in a pricing session
         AllPricingSessions[_nftAddress].uniqueVoters = addressesPerNft[_nftAddress].length;
         //Set finalAppraisal by calculating totalAppraisalValue / totalVotes. Scale back the 1000 to make up for scaling method in setVote
         AllPricingSessions[_nftAddress].finalAppraisal = (totalAppraisalValue[_nftAddress])/(AllPricingSessions[_nftAddress].totalVotes);
         nftAddresses.push(_nftAddress);
+        AllPricingSessions[_nftAddress].active = false;
         emit finalAppraisalDetermined(_nftAddress, AllPricingSessions[_nftAddress].finalAppraisal);
     }
     
@@ -285,17 +299,27 @@ contract PricingProtocol is ERC20{
     */
     function issueCoins(address a, address _nftAddress) internal onlyManager returns(bool){
         uint amount; 
-        //If pricing session size is under 10 users participants receive no reward, to stop users from making obscure pricing sessions
-        if (addressesPerNft[_nftAddress].length < 10) {
+        //If pricing session size is under 20 users participants receive no reward, to stop users from making obscure pricing sessions
+        if (addressesPerNft[_nftAddress].length < 20) {
             amount = 0;
         }
-        //If pricing session is 10 or larger then the pricing equation kicks in
-        else if (addressesPerNft[_nftAddress].length >= 10) {
+        //If pricing session is 20 or larger then the pricing equation kicks in
+        else if (addressesPerNft[_nftAddress].length >= 20) {
             amount = (nftVotes[_nftAddress][a].base * sqrt(nftVotes[_nftAddress][a].stake) * sqrt(addressesPerNft[_nftAddress].length) * 
                 sqrt(AllPricingSessions[_nftAddress].totalSessionStake)/sqrt(10**18))/sqrt(10**18);
         }
         //Mints the coins based on earned tokens and sends them to user at address a
         _mint(a, amount);
+        /*
+        If user is not a coinHolder (i.e. isCoinHolder[a] is false) 
+        this should push them to coinHolders list and set isCoinHolder to true.
+        */
+        if (isCoinHolder[a] = false) {
+            //Added user to coinHolder list for coin distribution purposes
+            coinHolders.push(a);
+            //Recognize this holder has been added to the list
+            isCoinHolder[a] = true;
+        }
         //Adds to total tokens issued
         AllPricingSessions[_nftAddress].tokensIssued += amount;
         //returns true if function ran smoothly and correctly executed
