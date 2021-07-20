@@ -94,7 +94,8 @@ contract PricingProtocol is ERC20{
     
     //Enforce session buffer to stop sessions from getting overwritten
     modifier stopOverwrite(address _nftAddress) {
-        require(AllPricingSessions[_nftAddress].active = false, "You must wait until this pricing session is over.");
+        require(AllPricingSessions[_nftAddress].active = false 
+            && now > AllPricingSessions[_nftAddress].endTime + 1 days, "You must wait 1 day before creating new session for this NFT.");
         _;
     }
     
