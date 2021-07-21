@@ -36,3 +36,9 @@
     transform: rotate(360deg);
   }
 }
+
+.social {
+  background-color: white;
+  margin-left: 25px;
+  border-radius: 50%;
+}
