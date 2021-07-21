@@ -1,12 +1,11 @@
+import logo from './logo.svg';
 import './App.css';
-import { SocialIcon } from 'react-social-icons';
 
 function App() {
-
   return (
     <div className="App">
       <header className="App-header">
-        <h1> Pricing Protocol is coming soon!  </h1>
+      <h1> Pricing Protocol is coming soon!  </h1>
         <p>
         Read our whitepaper <a href="https://github.com/alangindi/pricingcoin/blob/main/_Informal%20PricingProtocol%20White%20Paper.pdf">here</a>.
         <br />
@@ -20,5 +19,7 @@ function App() {
         </p> 
       </header>
     </div>
-  )
+  );
 }
+
+export default App;
