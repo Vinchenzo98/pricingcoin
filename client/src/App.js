@@ -1,4 +1,4 @@
-import logo from './logo.svg';
+import { SocialIcon } from 'react-social-icons';
 import './App.css';
 
 function App() {
