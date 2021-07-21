@@ -1,25 +1,23 @@
-import logo from './logo.svg';
 import './App.css';
+import { SocialIcon } from 'react-social-icons';
 
 function App() {
+
   return (
     <div className="App">
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
+        <h1> Pricing Protocol is coming soon!  </h1>
         <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
+        Read our whitepaper <a href="https://github.com/alangindi/pricingcoin/blob/main/_Informal%20PricingProtocol%20White%20Paper.pdf">here</a>.
+        <br />
+        <br /> 
+        Stay up to date with us on Twitter, Github, and Discord.
+        <br />
+        <br />
+          <SocialIcon className="social" url="https://twitter.com/PricingProtocol" />
+          <SocialIcon className="social" url="https://github.com/alangindi/pricingcoin" />
+          <SocialIcon className="social" url="https://discord.gg/dSVWkcqCxS" />
+        </p> 
       </header>
     </div>
   );
-}
-
-export default App;
