@@ -79,7 +79,7 @@ contract PricingProtocol is ERC20{
     //Represents a new vote being created
     event newVoteCreated(address _nftAddress, address _voterAddress, uint weight, uint appraisal, uint stake);
     //Represents the ending of pricing session and a final appraisal being determined 
-    event finalAppraisalDetermined(address _nftAddress, uint appraisal);
+    event finalAppraisalDetermined(address _nftAddress, uint appraisal, uint amountVoters);
     //Log coins being issued to user
     event coinsIssued(uint _amount, address recipient);
     //Log stakes successfully being refunded
@@ -181,7 +181,7 @@ contract PricingProtocol is ERC20{
         AllPricingSessions[_nftAddress].finalAppraisal = (totalAppraisalValue[_nftAddress])/(AllPricingSessions[_nftAddress].totalVotes);
         nftAddresses.push(_nftAddress);
         AllPricingSessions[_nftAddress].active = false;
-        emit finalAppraisalDetermined(_nftAddress, AllPricingSessions[_nftAddress].finalAppraisal);
+        emit finalAppraisalDetermined(_nftAddress, AllPricingSessions[_nftAddress].finalAppraisal, AllPricingSessions[_nftAddress].uniqueVoters);
     }
     
     /*
@@ -307,7 +307,7 @@ contract PricingProtocol is ERC20{
     Equation = base * sqrt(personal stake) * sqrt(size of pricing session) * sqrt(total ETH in staking pool)
     Base Distribution:
     */
-    function issueCoins(address a, address _nftAddress) internal onlyManager returns(bool){
+    function issueCoins(address a, address _nftAddress) public onlyManager returns(bool){
         uint amount; 
         //If pricing session size is under 20 users participants receive no reward, to stop users from making obscure pricing sessions
         if (addressesPerNft[_nftAddress].length < 20) {
@@ -406,5 +406,3 @@ contract PricingProtocol is ERC20{
         return AllPricingSessions[_nftAddress].finalAppraisal;
     }   
 }
-
-
