@@ -367,6 +367,14 @@ contract PricingProtocol is ERC20{
         return true;
     }
     
+    function getTotalSessionStake(address _nftAddress) view public returns(uint) {
+        return AllPricingSessions[_nftAddress].totalSessionStake;
+    }
+    
+    function getEndTime(address _nftAddress) view public returns(uint) {
+        return AllPricingSessions[_nftAddress].endTime;
+    }
+    
     function getTimeLeft(address _nftAddress) view public returns(uint) {
         uint timeLeft;
         if(AllPricingSessions[_nftAddress].endTime < block.timestamp) {
@@ -390,7 +398,7 @@ contract PricingProtocol is ERC20{
         return nftVotes[_nftAddress][a].appraisal;
     }
     
-    function getStake(address _nftAddress) view public returns(uint) {
+    function getStake(address _nftAddress) view public onlyManager returns(uint) {
         return nftVotes[_nftAddress][msg.sender].stake;
     }
     
@@ -398,3 +406,5 @@ contract PricingProtocol is ERC20{
         return AllPricingSessions[_nftAddress].finalAppraisal;
     }   
 }
+
+
