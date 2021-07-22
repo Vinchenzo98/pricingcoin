@@ -366,7 +366,22 @@ contract PricingProtocol is ERC20{
         emit lossPoolDistributed(balanceOf(receiver) * _contract.balance/totalSupply(), receiver);
         return true;
     }
-        
+    
+    function getTimeLeft(address _nftAddress) view public returns(uint) {
+        uint timeLeft;
+        if(AllPricingSessions[_nftAddress].endTime < block.timestamp) {
+            timeLeft = AllPricingSessions[_nftAddress].endTime - block.timestamp;
+        }
+        else {
+            timeLeft = 0;
+        }
+        return timeLeft;
+    }
+    
+    function getTotalVoters(address _nftAddress) view public returns(uint) {
+        return addressesPerNft[_nftAddress].length;
+    }
+    
     function getTreasury(address a) view public returns(uint) {
         return a.balance;
     }
