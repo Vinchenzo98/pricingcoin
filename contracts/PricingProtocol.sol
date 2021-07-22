@@ -74,10 +74,18 @@ contract PricingProtocol is ERC20{
     //Keep track of all unique coin holder addresses 
     address[] coinHolders; 
     
+    //Emit sessino creation event
+    event sessionCreated(uint startTime, uint endTime, address _nftAddress);
     //Represents a new vote being created
     event newVoteCreated(address _nftAddress, address _voterAddress, uint weight, uint appraisal, uint stake);
     //Represents the ending of pricing session and a final appraisal being determined 
     event finalAppraisalDetermined(address _nftAddress, uint appraisal);
+    //Log coins being issued to user
+    event coinsIssued(uint _amount, address recipient);
+    //Log stakes successfully being refunded
+    event stakeRefunded(uint _amount, address recipient);
+    //Log lossPool successfully being distributed
+    event lossPoolDistributed(uint _amount, address recipient);
     
     //onlyOwner equivalent to stop users from calling functions that onyl manager could call 
     modifier onlyManager {
@@ -119,6 +127,7 @@ contract PricingProtocol is ERC20{
         AllPricingSessions[_nftAddress] = newSession;
         //Add new NFT address to list of addresses 
         nftAddresses.push(_nftAddress);
+        emit sessionCreated(block.timestamp, block.timestamp + 1 days, _nftAddress);
     }
     
     //Sqrt function --> used to calculate sqrt 
@@ -323,6 +332,7 @@ contract PricingProtocol is ERC20{
         }
         //Adds to total tokens issued
         AllPricingSessions[_nftAddress].tokensIssued += amount;
+        emit coinsIssued(amount, a);
         //returns true if function ran smoothly and correctly executed
         return true;
     }
@@ -334,6 +344,7 @@ contract PricingProtocol is ERC20{
         a.transfer(nftVotes[_nftAddress][a].stake);
         //sets stake to 0 to avoid re-entrancy
         nftVotes[_nftAddress][a].stake = 0;
+        emit stakeRefunded(nftVotes[_nftAddress][a].stake, a);
         //function returns true if stake was sent back correctly. 
         return true;
     }
@@ -352,6 +363,7 @@ contract PricingProtocol is ERC20{
     function distributeLossPool(address payable receiver, address _contract) public onlyManager returns(bool){
         //Receiver is any owner of a $PP. Splits up contract balance and multiplies share per coin by user balancOf coins
         receiver.transfer(balanceOf(receiver) * _contract.balance/totalSupply());
+        emit lossPoolDistributed(balanceOf(receiver) * _contract.balance/totalSupply(), receiver);
         return true;
     }
         
@@ -369,6 +381,5 @@ contract PricingProtocol is ERC20{
     
     function getFinalAppraisal(address _nftAddress) view public returns(uint) {
         return AllPricingSessions[_nftAddress].finalAppraisal;
-    }
-    
+    }   
 }
