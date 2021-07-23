@@ -74,10 +74,18 @@ contract PricingProtocol is ERC20{
     //Keep track of all unique coin holder addresses 
     address[] coinHolders; 
     
+    //Emit sessino creation event
+    event sessionCreated(uint startTime, uint endTime, address _nftAddress);
     //Represents a new vote being created
     event newVoteCreated(address _nftAddress, address _voterAddress, uint weight, uint appraisal, uint stake);
     //Represents the ending of pricing session and a final appraisal being determined 
-    event finalAppraisalDetermined(address _nftAddress, uint appraisal);
+    event finalAppraisalDetermined(address _nftAddress, uint appraisal, uint amountVoters);
+    //Log coins being issued to user
+    event coinsIssued(uint _amount, address recipient);
+    //Log stakes successfully being refunded
+    event stakeRefunded(uint _amount, address recipient);
+    //Log lossPool successfully being distributed
+    event lossPoolDistributed(uint _amount, address recipient);
     
     //onlyOwner equivalent to stop users from calling functions that onyl manager could call 
     modifier onlyManager {
@@ -119,6 +127,7 @@ contract PricingProtocol is ERC20{
         AllPricingSessions[_nftAddress] = newSession;
         //Add new NFT address to list of addresses 
         nftAddresses.push(_nftAddress);
+        emit sessionCreated(block.timestamp, block.timestamp + 1 days, _nftAddress);
     }
     
     //Sqrt function --> used to calculate sqrt 
@@ -172,7 +181,7 @@ contract PricingProtocol is ERC20{
         AllPricingSessions[_nftAddress].finalAppraisal = (totalAppraisalValue[_nftAddress])/(AllPricingSessions[_nftAddress].totalVotes);
         nftAddresses.push(_nftAddress);
         AllPricingSessions[_nftAddress].active = false;
-        emit finalAppraisalDetermined(_nftAddress, AllPricingSessions[_nftAddress].finalAppraisal);
+        emit finalAppraisalDetermined(_nftAddress, AllPricingSessions[_nftAddress].finalAppraisal, AllPricingSessions[_nftAddress].uniqueVoters);
     }
     
     /*
@@ -298,7 +307,7 @@ contract PricingProtocol is ERC20{
     Equation = base * sqrt(personal stake) * sqrt(size of pricing session) * sqrt(total ETH in staking pool)
     Base Distribution:
     */
-    function issueCoins(address a, address _nftAddress) internal onlyManager returns(bool){
+    function issueCoins(address a, address _nftAddress) public onlyManager returns(bool){
         uint amount; 
         //If pricing session size is under 20 users participants receive no reward, to stop users from making obscure pricing sessions
         if (addressesPerNft[_nftAddress].length < 20) {
@@ -323,6 +332,7 @@ contract PricingProtocol is ERC20{
         }
         //Adds to total tokens issued
         AllPricingSessions[_nftAddress].tokensIssued += amount;
+        emit coinsIssued(amount, a);
         //returns true if function ran smoothly and correctly executed
         return true;
     }
@@ -334,6 +344,7 @@ contract PricingProtocol is ERC20{
         a.transfer(nftVotes[_nftAddress][a].stake);
         //sets stake to 0 to avoid re-entrancy
         nftVotes[_nftAddress][a].stake = 0;
+        emit stakeRefunded(nftVotes[_nftAddress][a].stake, a);
         //function returns true if stake was sent back correctly. 
         return true;
     }
@@ -352,9 +363,33 @@ contract PricingProtocol is ERC20{
     function distributeLossPool(address payable receiver, address _contract) public onlyManager returns(bool){
         //Receiver is any owner of a $PP. Splits up contract balance and multiplies share per coin by user balancOf coins
         receiver.transfer(balanceOf(receiver) * _contract.balance/totalSupply());
+        emit lossPoolDistributed(balanceOf(receiver) * _contract.balance/totalSupply(), receiver);
         return true;
     }
-        
+    
+    function getTotalSessionStake(address _nftAddress) view public returns(uint) {
+        return AllPricingSessions[_nftAddress].totalSessionStake;
+    }
+    
+    function getEndTime(address _nftAddress) view public returns(uint) {
+        return AllPricingSessions[_nftAddress].endTime;
+    }
+    
+    function getTimeLeft(address _nftAddress) view public returns(uint) {
+        uint timeLeft;
+        if(AllPricingSessions[_nftAddress].endTime < block.timestamp) {
+            timeLeft = AllPricingSessions[_nftAddress].endTime - block.timestamp;
+        }
+        else {
+            timeLeft = 0;
+        }
+        return timeLeft;
+    }
+    
+    function getTotalVoters(address _nftAddress) view public returns(uint) {
+        return addressesPerNft[_nftAddress].length;
+    }
+    
     function getTreasury(address a) view public returns(uint) {
         return a.balance;
     }
@@ -363,12 +398,11 @@ contract PricingProtocol is ERC20{
         return nftVotes[_nftAddress][a].appraisal;
     }
     
-    function getStake(address _nftAddress) view public returns(uint) {
+    function getStake(address _nftAddress) view public onlyManager returns(uint) {
         return nftVotes[_nftAddress][msg.sender].stake;
     }
     
     function getFinalAppraisal(address _nftAddress) view public returns(uint) {
         return AllPricingSessions[_nftAddress].finalAppraisal;
-    }
-    
+    }   
 }
