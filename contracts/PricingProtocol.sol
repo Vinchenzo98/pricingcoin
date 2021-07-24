@@ -4,6 +4,13 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 pragma solidity >=0.4.22 <0.9.0;
 
+/*
+THIS CONTRACT IS OUTDATED, IT IS CURRENTLY IN THIS REPO FOR REFERENCE IN CASE ONE OF
+PpCompute, PpMaster, or PpAllowVoting IS MISSING SOMETHING. REFER TO THOSE AS THE FUNCTIONAL
+CONTRACTS NOW.
+*/
+
+
 contract PricingProtocol is ERC20{
     //Manager --> Creator of the contract 
     address public manager;
