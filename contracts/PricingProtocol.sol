@@ -78,6 +78,8 @@ contract PricingProtocol is ERC20{
     event sessionCreated(uint startTime, uint endTime, address _nftAddress);
     //Represents a new vote being created
     event newVoteCreated(address _nftAddress, address _voterAddress, uint weight, uint appraisal, uint stake);
+    //Event to show that a session ended.
+    event sessionOver(address _nftAddress, uint endTime);
     //Represents the ending of pricing session and a final appraisal being determined 
     event finalAppraisalDetermined(address _nftAddress, uint appraisal, uint amountVoters);
     //Log coins being issued to user
@@ -377,11 +379,13 @@ contract PricingProtocol is ERC20{
     
     function getTimeLeft(address _nftAddress) view public returns(uint) {
         uint timeLeft;
-        if(AllPricingSessions[_nftAddress].endTime < block.timestamp) {
+        if(AllPricingSessions[_nftAddress].endTime > block.timestamp) {
             timeLeft = AllPricingSessions[_nftAddress].endTime - block.timestamp;
         }
         else {
             timeLeft = 0;
+            //If session is over, this event will tell front end to kick off post session ops
+            emit sessionOver(_nftAddress, AllPricingSessions[_nftAddress].endTime);
         }
         return timeLeft;
     }
