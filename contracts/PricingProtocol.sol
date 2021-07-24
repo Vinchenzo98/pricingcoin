@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0
+/// SPDX-License-Identifier: GPL-3.0
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -314,7 +314,7 @@ contract PricingProtocol is ERC20{
     
     Should return amount total loss harvest amount 
     */
-   function harvestLoss(address a, address _nftAddress) public onlyManager returns(uint){
+   function harvestLoss(address a, address _nftAddress) public onlyManager {
        /*
        Checks users that are out of the money for how far over (in first if statement) 
        or under (in else if) they are and adjusts their stake balance accordingly
