@@ -57,6 +57,11 @@ contract PricingProtocol is ERC20{
         uint lowestStake;
         //Track existence of NFT session
         bool active;
+        //Track out of the money addresses to optimize amount of transactions when harvesting loss
+        address[] outTheMoney;
+        //Track in the money addresses to optimize amount of transactions when paying out
+        address[] inTheMoney;
+        
     }
     
     //Easily accesible pricing session lookup 
@@ -65,10 +70,6 @@ contract PricingProtocol is ERC20{
     address[] nftAddresses;
     //Allows pricing protocol to handle multiple NFTs at once by allowing lookup and tracking of different NFTs
     mapping(address => mapping (address => Voter)) nftVotes;
-    //Track in the money addresses to optimize amount of transactions when paying out
-    address[] inTheMoney;
-    //Track out of the money addresses to optimize amount of transactions when harvesting loss
-    address[] outTheMoney;
     //Mapping to check if a user is already considered a coin holder
     mapping(address => bool) isCoinHolder;
     //Keep track of all unique coin holder addresses 
@@ -77,7 +78,7 @@ contract PricingProtocol is ERC20{
     //Emit sessino creation event
     event sessionCreated(uint startTime, uint endTime, address _nftAddress);
     //Represents a new vote being created
-    event newVoteCreated(address _nftAddress, address _voterAddress, uint weight, uint appraisal, uint stake);
+    event newVoteCreated(address _nftAddress, address _voterAddress, uint appraisal, uint stake);
     //Event to show that a session ended.
     event sessionOver(address _nftAddress, uint endTime);
     //Represents the ending of pricing session and a final appraisal being determined 
@@ -124,7 +125,7 @@ contract PricingProtocol is ERC20{
     //Create a new pricing session
     function createPricingSession(address _nftAddress) stopOverwrite public {
         //Create new instance of PricingSession
-        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0, 0, 10000000 ether, true);
+        PricingSession memory newSession = PricingSession(block.timestamp, block.timestamp + 1 days, 0, 0, 0, 0, 0, 0, 10000000 ether, true, [], []);
         //Assign new instance to NFT address
         AllPricingSessions[_nftAddress] = newSession;
         //Add new NFT address to list of addresses 
@@ -157,7 +158,7 @@ contract PricingProtocol is ERC20{
         //Attach new msg.sender address to newVote (i.e. new Voter struct)
         nftVotes[_nftAddress][msg.sender] = newVote;
         addressesPerNft[_nftAddress].push(msg.sender);
-        emit newVoteCreated(_nftAddress, msg.sender, sqrt(msg.value), _appraisal, msg.value);
+        emit newVoteCreated(_nftAddress, msg.sender, _appraisal, msg.value);
     }
     
     /* 
@@ -214,91 +215,59 @@ contract PricingProtocol is ERC20{
         if (104*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][a].appraisal 
             && 105*AllPricingSessions[_nftAddress].finalAppraisal >= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 1;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         else if (103*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
             && 104*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 2;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         else if (102*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][a].appraisal 
             && 103*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 3;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         else if (101*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
             && 102*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 4;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
             && 101*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 5;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
             && 99*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 5;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         else if (99*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
             && 98*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 4;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         else if (98*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
             && 97*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 3;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         else if (97*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
             && 96*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 2;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         else if (96*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
             && 95*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
             nftVotes[_nftAddress][a].base = 1;
-            inTheMoney.push(a);
+            AllPricingSessions[_nftAddress].inTheMoney.push(a);
         }
         //In this case the user is out of the money
         else {
             nftVotes[_nftAddress][a].base = 0;
-            outTheMoney.push(a);
+            AllPricingSessions[_nftAddress].outTheMoney.push(a);
         }
     }
-    
-    /*
-    At conclusion of pricing session we harvest the losses of users
-    that made guesses outside of the 5% over/under the finalAppraisalPrice
-    
-    Should return amount total loss harvest amount 
-    */
-   function harvestLoss(address a, address _nftAddress) public onlyManager returns(uint){
-       /*
-       Checks users that are out of the money for how far over (in first if statement) 
-       or under (in else if) they are and adjusts their stake balance accordingly
-       */
-        if (nftVotes[_nftAddress][a].appraisal*100 > 105*AllPricingSessions[_nftAddress].finalAppraisal){
-            AllPricingSessions[_nftAddress].lossPoolTotal += nftVotes[_nftAddress][a].stake * (nftVotes[_nftAddress][a].appraisal*100 - 105*AllPricingSessions[_nftAddress].finalAppraisal)
-                /(AllPricingSessions[_nftAddress].finalAppraisal*100);
-            nftVotes[_nftAddress][a].stake = 
-                (nftVotes[_nftAddress][a].stake - nftVotes[_nftAddress][a].stake * (nftVotes[_nftAddress][a].appraisal*100 - 105*AllPricingSessions[_nftAddress].finalAppraisal)
-                /(AllPricingSessions[_nftAddress].finalAppraisal*100));
-            return nftVotes[_nftAddress][a].stake;
-        }
-        else if(nftVotes[_nftAddress][a].appraisal*100 < 95*AllPricingSessions[_nftAddress].finalAppraisal){
-            AllPricingSessions[_nftAddress].lossPoolTotal += nftVotes[_nftAddress][a].stake * (95*AllPricingSessions[_nftAddress].finalAppraisal - 100*nftVotes[_nftAddress][a].appraisal)
-                /(AllPricingSessions[_nftAddress].finalAppraisal*100);
-            nftVotes[_nftAddress][a].stake = 
-                (nftVotes[_nftAddress][a].stake - nftVotes[_nftAddress][a].stake * (95*AllPricingSessions[_nftAddress].finalAppraisal - 100*nftVotes[_nftAddress][a].appraisal)
-                /(AllPricingSessions[_nftAddress].finalAppraisal*100));
-            return nftVotes[_nftAddress][a].stake;
-        }
-        else {
-            return nftVotes[_nftAddress][a].stake;
-        }
-    }    
     
     /*
     Distribution formula --> 
@@ -339,17 +308,47 @@ contract PricingProtocol is ERC20{
         return true;
     }
     
-    //Refund each users stake
-    function refundStake(address payable a, address _nftAddress) public onlyManager returns(bool) {
+    /*
+    At conclusion of pricing session we harvest the losses of users
+    that made guesses outside of the 5% over/under the finalAppraisalPrice
+    
+    Should return amount total loss harvest amount 
+    */
+   function harvestLoss(address a, address _nftAddress) public onlyManager returns(uint){
+       /*
+       Checks users that are out of the money for how far over (in first if statement) 
+       or under (in else if) they are and adjusts their stake balance accordingly
+       */
         require(nftVotes[_nftAddress][a].stake > 0);
-        //sends stakes back to users
-        a.transfer(nftVotes[_nftAddress][a].stake);
-        //sets stake to 0 to avoid re-entrancy
-        nftVotes[_nftAddress][a].stake = 0;
-        emit stakeRefunded(nftVotes[_nftAddress][a].stake, a);
-        //function returns true if stake was sent back correctly. 
-        return true;
-    }
+        if (nftVotes[_nftAddress][a].appraisal*100 > 105*AllPricingSessions[_nftAddress].finalAppraisal){
+            AllPricingSessions[_nftAddress].lossPoolTotal += nftVotes[_nftAddress][a].stake * (nftVotes[_nftAddress][a].appraisal*100 - 105*AllPricingSessions[_nftAddress].finalAppraisal)
+                /(AllPricingSessions[_nftAddress].finalAppraisal*100);
+            nftVotes[_nftAddress][a].stake = 
+                (nftVotes[_nftAddress][a].stake - nftVotes[_nftAddress][a].stake * (nftVotes[_nftAddress][a].appraisal*100 - 105*AllPricingSessions[_nftAddress].finalAppraisal)
+                /(AllPricingSessions[_nftAddress].finalAppraisal*100));
+            //Send stake back and emit event confirming
+            a.transfer(nftVotes[_nftAddress][a].stake);
+            nftVotes[_nftAddress][a].stake = 0;
+            emit stakeRefunded(nftVotes[_nftAddress][a].stake, a);
+        }
+        else if(nftVotes[_nftAddress][a].appraisal*100 < 95*AllPricingSessions[_nftAddress].finalAppraisal){
+            AllPricingSessions[_nftAddress].lossPoolTotal += nftVotes[_nftAddress][a].stake * (95*AllPricingSessions[_nftAddress].finalAppraisal - 100*nftVotes[_nftAddress][a].appraisal)
+                /(AllPricingSessions[_nftAddress].finalAppraisal*100);
+            nftVotes[_nftAddress][a].stake = 
+                (nftVotes[_nftAddress][a].stake - nftVotes[_nftAddress][a].stake * (95*AllPricingSessions[_nftAddress].finalAppraisal - 100*nftVotes[_nftAddress][a].appraisal)
+                /(AllPricingSessions[_nftAddress].finalAppraisal*100));
+            //Send stake back and emit event confirming
+            a.transfer(nftVotes[_nftAddress][a].stake);
+            nftVotes[_nftAddress][a].stake = 0;
+            emit stakeRefunded(nftVotes[_nftAddress][a].stake, a);
+        }
+        else {
+            //Send stake back and emit event confirming
+            a.transfer(nftVotes[_nftAddress][a].stake);
+            nftVotes[_nftAddress][a].stake = 0;
+            emit stakeRefunded(nftVotes[_nftAddress][a].stake, a);
+        }
+    }    
     
     /*
     Loss pool should be divided by the amount of tokens in circulation and
