@@ -49,7 +49,7 @@ contract PpVoting {
         uint amountBasesCalculated;
         uint coinIssueEvents;
         uint lossHarvestEvents;
-        uint distibutionEvents;
+        uint distributionEvents;
         //Track existence of NFT session
         bool active;
         //Bools to force specific progression of actions and allow users to call functions

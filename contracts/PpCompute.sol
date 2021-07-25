@@ -48,15 +48,15 @@ contract PpCompute is PpVoting, Ownable {
     Each vote is weighted based on the lowest stake. So lowest stake starts as 1 vote 
     and the rest of the votes are weighted as a multiple of that. 
     */
-    function weightVote(address _nftAddress, address a) votingSessionComplete(_nftAddress) public {
+    function weightVote(address _nftAddress) votingSessionComplete(_nftAddress) public {
         require(AllPricingSessions[_nftAddress].votesWeighted == false);
         //Weighting user at <address a> vote based on lowestStake
-        uint weight = sqrt(nftVotes[_nftAddress][a].stake/AllPricingSessions[_nftAddress].lowestStake);
+        uint weight = sqrt(nftVotes[_nftAddress][msg.sender].stake/AllPricingSessions[_nftAddress].lowestStake);
         //Add weighted amount of votes to PricingSession total votes for calculating setFinalAppraisal
         AllPricingSessions[_nftAddress].totalVotes += weight-1;
         //weight - 1 since one instance was already added in initial setVote function
         totalAppraisalValue[_nftAddress] += (weight-1) * nftVotes[_nftAddress][msg.sender].appraisal;
-        AllPricingSessions[_nftAddress].votesWeighted ++;
+        AllPricingSessions[_nftAddress].amountVotesWeighted ++;
         if (AllPricingSessions[_nftAddress].amountVotesWeighted == addressesPerNft[_nftAddress].length){
             AllPricingSessions[_nftAddress].votesWeighted = true;
         }
@@ -100,73 +100,73 @@ contract PpCompute is PpVoting, Ownable {
     This logic is implemented in calculateBase and issueCoins functions
     */
 
-    function calculateBase(address a, address _nftAddress) finalAppraisalComplete(_nftAddress) public {
-        nftVotes[_nftAddress][a].base = 0;
+    function calculateBase(address _nftAddress) finalAppraisalComplete(_nftAddress) public {
+        nftVotes[_nftAddress][msg.sender].base = 0;
         require(AllPricingSessions[_nftAddress].baseCalculated == false &&
             !(block.timestamp > AllPricingSessions[_nftAddress].endTime + 2 days));
         /*
         Each of the following test the voters guess starting from 105 (5% above) and going down to 95 (5% below). 
         If true nftVotes[_nftAddress][a].base is set to reflect the users base reward
         */
-        if (104*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][a].appraisal 
-            && 105*AllPricingSessions[_nftAddress].finalAppraisal >= 100*nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 1;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        if (104*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][msg.sender].appraisal 
+            && 105*AllPricingSessions[_nftAddress].finalAppraisal >= 100*nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 1;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
-        else if (103*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
-            && 104*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 2;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        else if (103*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][msg.sender].appraisal 
+            && 104*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 2;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
-        else if (102*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][a].appraisal 
-            && 103*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 3;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        else if (102*AllPricingSessions[_nftAddress].finalAppraisal < 100* nftVotes[_nftAddress][msg.sender].appraisal 
+            && 103*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 3;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
-        else if (101*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
-            && 102*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 4;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        else if (101*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][msg.sender].appraisal 
+            && 102*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 4;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
-        else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
-            && 101*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 5;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][msg.sender].appraisal 
+            && 101*AllPricingSessions[_nftAddress].finalAppraisal >= 100* nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 5;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
-        else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][a].appraisal 
-            && 99*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 5;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        else if (100*AllPricingSessions[_nftAddress].finalAppraisal < 100*nftVotes[_nftAddress][msg.sender].appraisal 
+            && 99*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 5;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
-        else if (99*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
-            && 98*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 4;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        else if (99*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][msg.sender].appraisal 
+            && 98*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 4;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
-        else if (98*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
-            && 97*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 3;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        else if (98*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][msg.sender].appraisal 
+            && 97*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 3;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
-        else if (97*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
-            && 96*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 2;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        else if (97*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][msg.sender].appraisal 
+            && 96*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 2;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
-        else if (96*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][a].appraisal 
-            && 95*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][a].appraisal) {
-            nftVotes[_nftAddress][a].base = 1;
-            AllPricingSessions[_nftAddress].inTheMoney.push(a);
+        else if (96*AllPricingSessions[_nftAddress].finalAppraisal > 100*nftVotes[_nftAddress][msg.sender].appraisal 
+            && 95*AllPricingSessions[_nftAddress].finalAppraisal <= 100*nftVotes[_nftAddress][msg.sender].appraisal) {
+            nftVotes[_nftAddress][msg.sender].base = 1;
+            AllPricingSessions[_nftAddress].inTheMoney.push(msg.sender);
         }
         //In this case the user is out of the money
         else {
-            nftVotes[_nftAddress][a].base = 0;
-            AllPricingSessions[_nftAddress].outTheMoney.push(a);
+            nftVotes[_nftAddress][msg.sender].base = 0;
+            AllPricingSessions[_nftAddress].outTheMoney.push(msg.sender);
         }
         
-        AllPricingSessions[_nftAddress].distributionEvents++;
+        AllPricingSessions[_nftAddress].amountBasesCalculated++;
         
-        if (AllPricingSessions[_nftAddress].basesCalculated == addressesPerNft[_nftAddress].length){
+        if (AllPricingSessions[_nftAddress].amountBasesCalculated == addressesPerNft[_nftAddress].length){
             AllPricingSessions[_nftAddress].baseCalculated = true;
         }
         else {
