@@ -21,25 +21,25 @@ contract PpMaster is ERC20, PpCompute {
     
     modifier baseCalculatedComplete(address _nftAddress) {
         require(AllPricingSessions[_nftAddress].baseCalculated == true ||
-            block.timestamp > AllPricingSessions[_nftAddress].endTime + 2 days, "Wait until base is calculated.");
+            block.timestamp > AllPricingSessions[_nftAddress].endTime + 2 days, "WBC");
         _;
     }
     
     modifier coinsIssuedComplete(address _nftAddress) {
         require(AllPricingSessions[_nftAddress].coinsIssued == true ||
-            block.timestamp > AllPricingSessions[_nftAddress].endTime + 4 days, "Wait until base is calculated.");
+            block.timestamp > AllPricingSessions[_nftAddress].endTime + 4 days, "WCI");
         _;
     }
 
     modifier lossHarvestedComplete(address _nftAddress) {
         require(AllPricingSessions[_nftAddress].lossHarvested == true ||
-            block.timestamp > AllPricingSessions[_nftAddress].endTime + 4 days, "Wait until base is calculated.");
+            block.timestamp > AllPricingSessions[_nftAddress].endTime + 4 days, "WLH");
         _;
     }
     
     modifier lossDistributedComplete(address _nftAddress) {
         require(AllPricingSessions[_nftAddress].lossPoolDistributed == true ||
-            block.timestamp > AllPricingSessions[_nftAddress].endTime + 6 days, "Wait until base is calculated.");
+            block.timestamp > AllPricingSessions[_nftAddress].endTime + 6 days, "WLD");
         _;
     }
     

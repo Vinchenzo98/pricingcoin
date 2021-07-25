@@ -19,18 +19,18 @@ contract PpCompute is PpVoting, Ownable {
     event lossPoolDistributed(uint _amount, address recipient);
     
     modifier votingSessionComplete(address _nftAddress) {
-        require(block.timestamp >= AllPricingSessions[_nftAddress].endTime, "Pricing session is ongoing");
+        require(block.timestamp >= AllPricingSessions[_nftAddress].endTime, "PSO");
         _;
     }
     
     modifier votesWeightedComplete(address _nftAddress) {
         require(AllPricingSessions[_nftAddress].votesWeighted == true || 
-            block.timestamp > AllPricingSessions[_nftAddress].endTime + 1 days, "Wait until all votes are weighted."); 
+            block.timestamp > AllPricingSessions[_nftAddress].endTime + 1 days, "WVW"); 
         _;
     }
     
     modifier finalAppraisalComplete(address _nftAddress) {
-        require(AllPricingSessions[_nftAddress].finalAppraisalSet == true, "Wait until final appraisal is set.");
+        require(AllPricingSessions[_nftAddress].finalAppraisalSet == true, "WFA");
         _;
     }
 

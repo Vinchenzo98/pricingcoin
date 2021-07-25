@@ -80,26 +80,26 @@ contract PpVoting {
         //Check if contract is still currently active 
     modifier isActive(address _nftAddress) {
         //If block.timestamp is less than endTime the session is over so user shouldn't be able to vote anymore
-        require(block.timestamp < AllPricingSessions[_nftAddress].endTime, "This pricing session is no longer active :(");
+        require(block.timestamp < AllPricingSessions[_nftAddress].endTime, "PNA");
         _;
     }
     
     //Enforce session buffer to stop sessions from getting overwritten
     modifier stopOverwrite(address _nftAddress) {
         require(AllPricingSessions[_nftAddress].active = false 
-            && block.timestamp > AllPricingSessions[_nftAddress].endTime + 8 days, "You must wait 8 days before creating new session for this NFT.");
+            && block.timestamp > AllPricingSessions[_nftAddress].endTime + 8 days, "W8D");
         _;
     }
     
     //Make sure users don't submit more than one appraisal
     modifier oneVoteEach(address _nftAddress) {
-        require(!nftVotes[_nftAddress][msg.sender].exists, "Each user only gets one vote!");
+        require(!nftVotes[_nftAddress][msg.sender].exists, "1V");
         _;
     }
     
     //Check to see that the user has enough money to stake what they promise
     modifier checkStake {
-        require(msg.value >= 0.001 ether, "You must stake some ETH to vote :)");
+        require(msg.value >= 0.001 ether, "SETH");
         _;
     }
     
