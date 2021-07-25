@@ -63,9 +63,6 @@ contract PpVoting {
         address[] outTheMoney;
         //Track in the money addresses to optimize amount of transactions when paying out
         address[] inTheMoney;
-        //Make sure users only have 1 time access to loss pool.
-        mapping(address => bool) accessedLossPool;
-        
     }
     
     //Easily accesible pricing session lookup 

@@ -7,6 +7,8 @@ pragma solidity >=0.4.22 <0.9.0;
 
 contract PpMaster is ERC20, PpCompute {
     
+    //
+    mapping(address => mapping(address => bool)) accessedLossPool;
     //Mapping to check if a user is already considered a coin holder
     mapping(address => bool) isCoinHolder;
     //Keep track of all unique coin holder addresses 
@@ -154,13 +156,13 @@ contract PpMaster is ERC20, PpCompute {
     _amount represents the calculate amount of ETH per token that is to be distributed.
     Function should return true if eth is successfully sent. 
     */
-    function distributeLossPool(address payable receiver, address _contract) 
+    function distributeLossPool(address payable receiver, address _nftAddress) 
         public lossHarvestedComplete(_nftAddress) returns(bool){
-            require(accessedLossPool[receiver] == false);
+            require(accessedLossPool[_nftAddress][receiver] == false);
         //Receiver is any owner of a $PP. Splits up contract balance and multiplies share per coin by user balancOf coins
-        accessedLossPool[receiver] == true;
-        receiver.transfer(balanceOf(receiver) * _contract.balance/totalSupply());
-        emit lossPoolDistributed(balanceOf(receiver) * _contract.balance/totalSupply(), receiver);
+        accessedLossPool[_nftAddress][receiver] == true;
+        receiver.transfer(balanceOf(receiver) * _nftAddress.balance/totalSupply());
+        emit lossPoolDistributed(balanceOf(receiver) * _nftAddress.balance/totalSupply(), receiver);
         AllPricingSessions[_nftAddress].distributionEvents++;
         
         if (AllPricingSessions[_nftAddress].distributionEvents == addressesPerNft[_nftAddress].length){
