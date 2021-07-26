@@ -438,25 +438,20 @@ contract PpContract is ERC20 {
         return true;
     }
     
+    function getProfitsGenerated() view public returns(uint) {
+        return profitGenerated;
+    }
+    
+    function getTotalCoinsIssued() view public returns(uint) {
+        return totalSupply();
+    }
+    
     function getTotalSessionStake(address _nftAddress) view public returns(uint) {
         return AllPricingSessions[_nftAddress].totalSessionStake;
     }
     
     function getEndTime(address _nftAddress) view public returns(uint) {
         return AllPricingSessions[_nftAddress].endTime;
-    }
-    
-    function getTimeLeft(address _nftAddress) public returns(uint) {
-        uint timeLeft;
-        if(AllPricingSessions[_nftAddress].endTime > block.timestamp) {
-            timeLeft = AllPricingSessions[_nftAddress].endTime - block.timestamp;
-        }
-        else {
-            timeLeft = 0;
-            //If session is over, this event will tell front end to kick off post session ops
-            emit sessionOver(_nftAddress, AllPricingSessions[_nftAddress].endTime);
-        }
-        return timeLeft;
     }
     
     function getTotalVoters(address _nftAddress) view public returns(uint) {
