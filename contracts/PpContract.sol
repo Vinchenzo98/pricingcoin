@@ -16,18 +16,21 @@ contract PpContract is ERC20 {
     //Initial constructor for the entire Pricing Protocol contract
     constructor(uint256 initialSupply) ERC20("PricingCoin", "PP") {
         _mint(msg.sender, initialSupply);
+        nonce = 1;
     }
     
+    // ============ Mutable storage ============
+
     uint profitGenerated;
     uint totalCoinsIssued;
+    uint nonce;
     
     //Total amount of NFTs that have been priced using pricing protocol
     address[] nftAddresses;
     //Keep track of all unique coin holder addresses 
     address[] coinHolders; 
     
-    //
-    mapping(address => mapping(address => bool)) accessedLossPool;
+    // ============ Mappings ============
     //Mapping to check if a user is already considered a coin holder
     mapping(address => bool) isCoinHolder;
     //Maps the total appraisal value to an NFT address to be used for mapping finalAppraisal to specific NFT address
@@ -40,7 +43,14 @@ contract PpContract is ERC20 {
     mapping(address => mapping (address => Voter)) nftVotes;
     //Allow contract to track which NFT sessions a user has participated in
     mapping(address => address[]) userSessionsParticipated;
+    //
+    mapping(uint => uint) lossPoolDistributionSession;
+    //
+    mapping(uint => mapping(address => bool)) lossPoolAccessCheck;
+    //
+    mapping(uint => uint) lPDSstartTime;
     
+    // ============ Structs ============
     //Voter struct to allow users to submit votes, stake, and track that the user has already voted (i.e. exists = true) 
     struct Voter {
         /*
@@ -97,6 +107,7 @@ contract PpContract is ERC20 {
         address[] inTheMoney;
     }
     
+    // ============ Events ============
     //Emit sessino creation event
     event sessionCreated(uint startTime, uint endTime, address _nftAddress);
     //Represents a new vote being created
@@ -112,7 +123,8 @@ contract PpContract is ERC20 {
     //Log lossPool successfully being distributed
     event lossPoolDistributed(uint _amount, address recipient);
     
-        //Check if contract is still currently active 
+    // ============ Modifiers ============
+    //Check if contract is still currently active 
     modifier isActive(address _nftAddress) {
         //If block.timestamp is less than endTime the session is over so user shouldn't be able to vote anymore
         require(block.timestamp < AllPricingSessions[_nftAddress].endTime, "PNA");
@@ -178,7 +190,7 @@ contract PpContract is ERC20 {
         _;
     }
     
-       //Create a new pricing session
+    //Create a new pricing session
     function createPricingSession(address _nftAddress) stopOverwrite(_nftAddress) public {
         //Create new instance of PricingSession
         PricingSession memory newSession;
@@ -367,6 +379,7 @@ contract PpContract is ERC20 {
             AllPricingSessions[_nftAddress].lossPoolTotal += totalHarvestedOver;
             nftVotes[_nftAddress][msg.sender].stake = 
                 nftVotes[_nftAddress][msg.sender].stake - totalHarvestedOver;
+            lossPoolDistributionSession[nonce] += totalHarvestedOver;
             profitGenerated += totalHarvestedOver;
             
             //Send stake back and emit event confirming
@@ -385,6 +398,7 @@ contract PpContract is ERC20 {
             AllPricingSessions[_nftAddress].lossPoolTotal += totalHarvestedUnder;
             nftVotes[_nftAddress][msg.sender].stake = 
                 nftVotes[_nftAddress][msg.sender].stake - totalHarvestedUnder;
+            lossPoolDistributionSession[nonce] += totalHarvestedUnder;
             profitGenerated += totalHarvestedUnder;
                 
             //Send stake back and emit event confirming
@@ -419,23 +433,34 @@ contract PpContract is ERC20 {
     _amount represents the calculate amount of ETH per token that is to be distributed.
     Function should return true if eth is successfully sent. 
     */
-    function distributeLossPool(address payable receiver, address _nftAddress) 
-        public lossHarvestedComplete(_nftAddress) returns(bool){
-        require(accessedLossPool[_nftAddress][receiver] == false);
+    function distributeLossPool(address _nftAddress) public lossHarvestedComplete(_nftAddress) returns(bool){
+        if(nonce == 1) {
+            lPDSstartTime[nonce] = block.timestamp;
+        }
+        require(lossPoolAccessCheck[nonce][msg.sender] == false 
+                && lPDSstartTime[nonce] >= lPDSstartTime[nonce - 1] + 32 days);
         //Receiver is any owner of a $PP. Splits up contract balance and multiplies share per coin by user balancOf coins
-        accessedLossPool[_nftAddress][receiver] == true;
-        receiver.transfer(balanceOf(receiver) * _nftAddress.balance/totalSupply());
-        emit lossPoolDistributed(balanceOf(receiver) * _nftAddress.balance/totalSupply(), receiver);
+        lossPoolAccessCheck[nonce][msg.sender] = true;
+        payable(msg.sender).transfer(balanceOf(msg.sender) * lossPoolDistributionSession[nonce]/totalSupply());
+        lossPoolDistributionSession[nonce] -= balanceOf(msg.sender) * lossPoolDistributionSession[nonce]/totalSupply();
+        emit lossPoolDistributed(balanceOf(msg.sender) * lossPoolDistributionSession[nonce]/totalSupply(), msg.sender);
         AllPricingSessions[_nftAddress].distributionEvents++;
         
-        if (AllPricingSessions[_nftAddress].distributionEvents == addressesPerNft[_nftAddress].length){
+        if (lossPoolDistributionSession[nonce] == 0 || lPDSstartTime[nonce] + 2 days < block.timestamp){
             AllPricingSessions[_nftAddress].lossPoolDistributed = true;
+            nonce++;
+            lossPoolDistributionSession[nonce] += lossPoolDistributionSession[nonce - 1];
+            lossPoolDistributionSession[nonce - 1] = 0;
         }
         else {
             AllPricingSessions[_nftAddress].lossPoolDistributed = false;
         }
         
         return true;
+    }
+    
+    function getLossPoolRemainder() view public returns(uint) {
+        return lossPoolDistributionSession[nonce];
     }
     
     function getProfitsGenerated() view public returns(uint) {
