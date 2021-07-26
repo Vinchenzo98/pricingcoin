@@ -2,10 +2,13 @@
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./PpCompute.sol";
+import "./harvestLossLibrary.sol";
 
 pragma solidity >=0.4.22 <0.9.0;
 
 contract PpMaster is ERC20, PpCompute {
+
+    using harvestLossLibrary for *;
     
     //
     mapping(address => mapping(address => bool)) accessedLossPool;
@@ -13,7 +16,14 @@ contract PpMaster is ERC20, PpCompute {
     mapping(address => bool) isCoinHolder;
     //Keep track of all unique coin holder addresses 
     address[] coinHolders; 
-    
+
+    //Log coins being issued to user
+    event coinsIssued(uint _amount, address recipient);
+    //Log stakes successfully being refunded
+    event stakeRefunded(uint _amount, address recipient);
+    //Log lossPool successfully being distributed
+    event lossPoolDistributed(uint _amount, address recipient);
+
     //Initial constructor for the entire Pricing Protocol contract
     constructor(uint256 initialSupply) ERC20("PricingCoin", "PP") {
         _mint(msg.sender, initialSupply);
@@ -62,8 +72,8 @@ contract PpMaster is ERC20, PpCompute {
         }
         //If pricing session is 20 or larger then the pricing equation kicks in
         else if (addressesPerNft[_nftAddress].length >= 20) {
-            amount = (nftVotes[_nftAddress][msg.sender].base * sqrt(nftVotes[_nftAddress][msg.sender].stake) * sqrt(addressesPerNft[_nftAddress].length) * 
-                sqrt(AllPricingSessions[_nftAddress].totalSessionStake)/sqrt(10**18))/sqrt(10**18);
+            amount = (nftVotes[_nftAddress][msg.sender].base * sqrtLibrary.sqrt(nftVotes[_nftAddress][msg.sender].stake) * sqrtLibrary.sqrt(addressesPerNft[_nftAddress].length) * 
+                sqrtLibrary.sqrt(AllPricingSessions[_nftAddress].totalSessionStake)/sqrtLibrary.sqrt(10**18))/sqrtLibrary.sqrt(10**18);
         }
         //Mints the coins based on earned tokens and sends them to user at address a
         _mint(msg.sender, amount);
@@ -107,22 +117,35 @@ contract PpMaster is ERC20, PpCompute {
        */
         require(nftVotes[_nftAddress][msg.sender].stake > 0);
         if (nftVotes[_nftAddress][msg.sender].appraisal*100 > 105*AllPricingSessions[_nftAddress].finalAppraisal){
-            AllPricingSessions[_nftAddress].lossPoolTotal += nftVotes[_nftAddress][msg.sender].stake * (nftVotes[_nftAddress][msg.sender].appraisal*100 - 105*AllPricingSessions[_nftAddress].finalAppraisal)
-                /(AllPricingSessions[_nftAddress].finalAppraisal*100);
+            AllPricingSessions[_nftAddress].lossPoolTotal += harvestLossLibrary.harvestUserOver(
+                nftVotes[_nftAddress][msg.sender].stake, 
+                nftVotes[_nftAddress][msg.sender].appraisal, 
+                AllPricingSessions[_nftAddress].finalAppraisal
+                );
+
             nftVotes[_nftAddress][msg.sender].stake = 
-                (nftVotes[_nftAddress][msg.sender].stake - nftVotes[_nftAddress][msg.sender].stake * (nftVotes[_nftAddress][msg.sender].appraisal*100 - 105*AllPricingSessions[_nftAddress].finalAppraisal)
-                /(AllPricingSessions[_nftAddress].finalAppraisal*100));
+                nftVotes[_nftAddress][msg.sender].stake - harvestLossLibrary.harvestUserOver(
+                nftVotes[_nftAddress][msg.sender].stake, 
+                nftVotes[_nftAddress][msg.sender].appraisal, 
+                AllPricingSessions[_nftAddress].finalAppraisal
+                );
             //Send stake back and emit event confirming
             payable(msg.sender).transfer(nftVotes[_nftAddress][msg.sender].stake);
             nftVotes[_nftAddress][msg.sender].stake = 0;
             emit stakeRefunded(nftVotes[_nftAddress][msg.sender].stake, msg.sender);
         }
         else if(nftVotes[_nftAddress][msg.sender].appraisal*100 < 95*AllPricingSessions[_nftAddress].finalAppraisal){
-            AllPricingSessions[_nftAddress].lossPoolTotal += nftVotes[_nftAddress][msg.sender].stake * (95*AllPricingSessions[_nftAddress].finalAppraisal - 100*nftVotes[_nftAddress][msg.sender].appraisal)
-                /(AllPricingSessions[_nftAddress].finalAppraisal*100);
+            AllPricingSessions[_nftAddress].lossPoolTotal += harvestLossLibrary.harvestLossUnder(
+                nftVotes[_nftAddress][msg.sender].stake, 
+                nftVotes[_nftAddress][msg.sender].appraisal, 
+                AllPricingSessions[_nftAddress].finalAppraisal
+                );
             nftVotes[_nftAddress][msg.sender].stake = 
-                (nftVotes[_nftAddress][msg.sender].stake - nftVotes[_nftAddress][msg.sender].stake * (95*AllPricingSessions[_nftAddress].finalAppraisal - 100*nftVotes[_nftAddress][msg.sender].appraisal)
-                /(AllPricingSessions[_nftAddress].finalAppraisal*100));
+                nftVotes[_nftAddress][msg.sender].stake - harvestLossLibrary.harvestLossUnder(
+                nftVotes[_nftAddress][msg.sender].stake, 
+                nftVotes[_nftAddress][msg.sender].appraisal, 
+                AllPricingSessions[_nftAddress].finalAppraisal
+                );
             //Send stake back and emit event confirming
             payable(msg.sender).transfer(nftVotes[_nftAddress][msg.sender].stake);
             nftVotes[_nftAddress][msg.sender].stake = 0;
