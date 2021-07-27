@@ -330,7 +330,7 @@ contract PpContract is ERC20 {
         }
         //If pricing session is 20 or larger then the pricing equation kicks in
         else if (addressesPerNft[_nftAddress].length >= 20) {
-            amount = (nftVotes[_nftAddress][msg.sender].base * sqrtLibrary.sqrt(nftVotes[_nftAddress][msg.sender].stake) * sqrtLibrary.sqrt(addressesPerNft[_nftAddress].length) * 
+            amount = (nftVotes[_nftAddress][msg.sender].base * sqrtLibrary.sqrt(nftVotes[_nftAddress][msg.sender].stake) * sqrtLibrary.sqrt(sqrtLibrary.sqrt(addressesPerNft[_nftAddress].length)) * 
                 sqrtLibrary.sqrt(AllPricingSessions[_nftAddress].totalSessionStake)/sqrtLibrary.sqrt(10**18))/sqrtLibrary.sqrt(10**18);
         }
         //Mints the coins based on earned tokens and sends them to user at address a
