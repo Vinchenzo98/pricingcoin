@@ -318,7 +318,7 @@ contract PpContract is ERC20 {
                    size of total staking pool (constant for all in session),    
                    user stake (quadratic multiplier),  
                    accuracy (base)
-    Equation = base * sqrt(personal stake) * sqrt(size of pricing session) * sqrt(total ETH in staking pool)
+    Equation = base * sqrt(personal stake) * sqrt(size of pricing session) * fourth-rt(total ETH in staking pool)
     */
     function issueCoins(address _nftAddress) public baseCalculatedComplete(_nftAddress) returns(bool){
         require(AllPricingSessions[_nftAddress].coinsIssued == false &&
