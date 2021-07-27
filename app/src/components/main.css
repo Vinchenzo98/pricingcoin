@@ -1,0 +1,27 @@
+/* Active NFTs Pricing Sessions */
+header{
+    position: absolute;
+    width: 326px;
+    height: 32px;
+    left: 409px;
+    top: 21px;
+
+    font-family: Roboto;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 20px;
+    line-height: 23px;
+    text-align: center;
+
+    background-color:gray;
+    color: #000000;
+}
+.heading{
+    font-weight:bold;
+}
+.view{
+    text-decoration: underline;
+}
+.color{
+    color: white;
+}

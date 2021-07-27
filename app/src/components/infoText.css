@@ -1,0 +1,34 @@
+.left{
+    position: absolute;
+width: 334px;
+height: 41px;
+left: 80px;
+top: 426px;
+
+font-family: Roboto;
+font-style: normal;
+font-weight: normal;
+font-size: 15px;
+line-height: 18px;
+text-align: center;
+
+color: #000000;
+}
+.right{
+
+    position: absolute;
+    width: 334px;
+    height: 41px;
+    left: 400px;
+    top: 426px;
+    
+    font-family: Roboto;
+    font-style: normal;
+    font-weight: normal;
+    font-size: 15px;
+    line-height: 18px;
+    text-align: center;
+    
+    color: #000000;
+
+}
